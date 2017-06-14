@@ -17,36 +17,45 @@ from scipy.interpolate import interp1d
 # %% class Element
 
 class Element:
-    """ abstract class Element
+    """Base class 
     
-    _Element is the basic class, xxx for both `Element` and `System`
+    Element is the base class on which other elements are created by inheritance
+    A new element created from Element must have the following methods:
+    * __init__
+    * _init_sim_generic
+    * _sim
+    
     
     """
     
 
     def __init__(self,name,system=self,variables=[],**kwargs): 
+        
         """Create _Element object
-    
-        :system: System
-                The system to which the element belongs
-                
-        :variables: Listlike
-                    list of variable's names
         
-        
-        :param state: Current state to be in. 
-        :type state: bool. 
-        :returns: int -- the return code. 
-        :raises: AttributeError, KeyError
         
         Attributes
         ----------
+        :name: Element name
+        :system: System or Element
+                The system or element to which the element or sub-element belongs
+                
+        :variables: list of variables 
+                Each variable is a dictionary having the following keys
+                    * name
+                    * min
+                    * max
+                    * val
+        :delta_t: lenght of simuation timestep, in seconds [default: 1 day]
+        :T: periodicity, in number of timesteps [default: 1 year, i.e. 365 steps] 
+        
+        * To be tested
         
         """ 
        
         # test uniqueness of name in system
         if any([name==element.name for element in system.internal_elements]):
-            raise Exception('Element _id non unique') # use error() instead?
+            raise Exception('Element name non unique') # use error() instead?
             
         self.name=name 
         self.system=system        
@@ -60,15 +69,6 @@ class Element:
             add_input(input_) 
         #self.elements_down=elements_down if elements_down in kwargs else []
         
-        #inputs_order=  get list of orders of inputs if self.inputs!=0 else 0
-        
-        if self isinstance(pd.Series):
-            self.order = 0             
-        else :
-            order = 0            
-            for input_ in self.inputs:
-                order = max (order,input_.order)               
-            self.order= order + 1
         
         
         if system==self        
@@ -96,18 +96,17 @@ class Element:
         print(var['name']) for var in variables
 
 
-    def connect_to(self,element_up=[],element_down=[]):
-        """Connect Element to another elements
-        
-        :type element_up: object
-        TODO : test if element_up or element_down are Element
-        """
-        self.elements_up.append(element_up) if element_up != [] #and isinstance(element_up)=_Element
-        self.elements_down.append(element_down) if element_down != []
-
     
-    def add_input(self,element,var_name=[]):
-        """include var element among inputs
+    def add_input(self,element,var_name=[]):   #TODO add variable directly 
+        
+        """Add input to the element
+        
+        Attributes
+        ----------
+        :element: input element 
+        :var_name: name of input variable 
+        
+        * To be tested
         
         """
         
@@ -124,6 +123,28 @@ class Element:
                         self.input=element.var
                     else:
                         error('variable not found')
+
+
+
+    def find_var(self,name):
+		"""find a variable (i.e. a dictionary) in list of variables by name
+           * To be tested
+	
+		"""
+		# from https://stackoverflow.com/questions/8653516/python-list-of-dictionaries-search	
+		return ([var for var in self.variables if var['name'] == name][0])
+
+
+
+    def find_var_t(self,name,t)
+		"""find a variable value by name and t
+           * To be tested
+		"""
+		# from https://stackoverflow.com/questions/8653516/python-list-of-dictionaries-search	
+		var=find_var(name)
+		val=var.['val'][t]
+		return(val)
+
 
 
     def set_constraint(var_name,value,**kwargs)    
@@ -153,12 +174,14 @@ class Element:
             error('Variable '+ var_name + ' not found' )      
             
         
-        #constraint function of other variable(s)
-        #TODO constraint function of other variable(s)
-        # HOW: create addictional variable in element, and constraint var_name to it
         
 
     def set_delta_t(self,delta_t):
+        """Assign delta_t to all system elements (or to all subcomponents)
+        
+        * To be tested
+        
+        """
         
         for element in self.internal_elements:
             if element.internal_elements == []:
@@ -168,16 +191,12 @@ class Element:
                 #self.T=_Element.T #Deltat[:][i]=_Element.Deltat #extract deltat
 
 
-
-
-
      
-     
-        
     
     def create_input(self):
         """ Create a df of all inputs with the longest period and uniform delta_t 
         
+        * Not to be used in OptVsSim
         
         """
         
@@ -199,61 +218,59 @@ class Element:
         """reorder list of internal elements to match correct order of simulation
         
         TODO NOT WORKING YET. ELEMENTS MUST BE ADDED IN THE RIGHT ORDER
+         
+        * Not to be used in OptVsSim
         
         """
         
         order_list = [None] * len(self.internal_elements)
-        
-      
-        
-        if False: 
-        #TODO
-            while any value in order_list is not None:
-                for element in self.internal_elements:
-                    order_values = order_list[]
-                    if element.inputs == []:
-                        index_element=system.internal_element.index(element)
-                        order_value [index_element]  = 0
-                    elif 
-                    all element.inputs is not None:
-                        order_value = max (order_value[element.inputs.index]) + 1
+              
+#        if False: 
+#        #TODO
+#            while any value in order_list is not None:
+#                for element in self.internal_elements:
+#                    order_values = order_list[]
+#                    if element.inputs == []:
+#                        index_element=system.internal_element.index(element)
+#                        order_value [index_element]  = 0
+#                    elif 
+#                    all element.inputs is not None:
+#                        order_value = max (order_value[element.inputs.index]) + 1
                                         
-            
-        
-#        for input_ in self.inputs:
-#            for element in self.system.internal_elements[0:index_self]:
-#                
-#        		if input_['element'] == element['name']:
-#                     self.system[],self.system [] =  
 
-    def set_initial_conditions(self,var,initial_value):
+    def set_initial_conditions(self,var_name,initial_value):
         """Set initial condition for var to initial_value
         
-        
+         * Not to be used in OptVsSim
         """
-        self.variables(var)=initial_value
+        var=self.find_var(var_name)
+        var['init']=initial_value #TODO this must be corrected
 
 
-    def init_sim(self,df_input):
-        """initialize simulation
+    def init_sim(self,H):
+        """initialize simulation for all elements
+        
+        Attributes
+        ----------
+        :H: length of the simulation, in time steps
         
         """
         
-        H = len (df_input)
             #create empty lists for all variables
         for element in self.internal_elements:
-            for var in element.variables:
-                if element isinstance(pd.Series) :
-                    var_name = var['name']
-                    var['val'] = df_input[var_name].values#[0:H] it must be H values
-                else: 
-                    var['val'] = [None] * H #create empty list
-                
-                    ##TODO ADD check : var['init'] exists
-                    var['val'][0]= var['init'] #set initial conditions to var[init]
+            element._init_sim(H)
+	
+	
+    def _init_sim(self,H):  
+        """initialize element simulation
+        
+        """
+        for var in element.variables:
+            var['val'].append([None] * (H-1)) #create empty list
+            ##TODO ADD check : var['init'] exists and it is a valid value
+            #var['val'][0]= var['init'] #set initial conditions to var[init]
 
-            
-   
+
     def _sim(self,t):
         """one step simulation
         
@@ -268,27 +285,29 @@ class Element:
     def sim_H(self):
         """
         
-        
+        TODO: get H from data
         """        
                 
         #self.order_elements()
         
-        df_input=create_input()
-        H = len (df_input)
+        #df_input=create_input()
+        #H = len (df_input)
+        H=1000
         
-        self.init_sim(df_input)
+        self.init_sim()
             
-        for t in range(1,H):
+        for t in range(H-1):
             self._sim(t)
             
         # create dataframe of all variables    
+
    
    
    def GP_sim(self,parameters):
        
        #TODO 
        for element in internal_elements:
-           if element isinstance(ReleaseRules):
+           if isinstance(element,ReleaseRules):
                    element.parameters = parameters #lambda x : radial_function(x,parameters)
                
        self.sim_H()
@@ -310,46 +329,11 @@ class Element:
                     Problem.SDDP_Problems[t].A[Var.Pos][Var.Pos]=1              #B I did not consider this part
 
 
-
-System=Element
-
-
-
-# CLASS TO BE DELETED
-class System(_Element):
-    def __init__(self,name,delta_t=86400):
-        _Element.__init__(self,name,self,[])  #will this work? TO BE TESTED
-        
-        self.set_delta_t()        
-        self.input_df=create_input()
-
-    
-    
-    
-    #assign order to list of elements
-    def order_elements(self):
-        """ order elements for simulation, from upstream to downstream
-        """        
-        #TODO: TO BE DEVELOPED! for the moment    
-    
-
-
-    ## find common period to all hydrological inputs and define dataframe
-    # assuming continuous 
-
-    
-    def create_output(self,optim_problem):
-        """
-        
-        """
-    
-          
-            
-            
+System=Element #just a name change
 
       
         
-class Reservoir(_Element):
+class Reservoir(Element):
     """ Reservoir element
     
     Attributes
@@ -390,7 +374,7 @@ class Reservoir(_Element):
     """
     
     
-    def __init__(self,name,system,max_volume,release_name='release',max_release=+inf,**kwargs):
+    def __init__(self,name,system,max_volume=+inf,release_name='release',max_release=+inf,**kwargs):
         
         min_volume=min_volume if 'min_volume' in kwargs else 0              
         volume={'name':'volume','max':max_volume,'min'=min_volume}
@@ -399,7 +383,7 @@ class Reservoir(_Element):
             release={'name':release,'min':0,'max'=max_release} 
         #TODO        HOW to handle releases
         
-        _Element.__init__(self,name,system,[volume,releases])
+        Element.__init__(self,name,system,[volume,releases])
         
                
 
@@ -447,42 +431,38 @@ class Reservoir(_Element):
           
             
             
-    def set_initial_conditions(self,initial_volume):
+    def set_initial_volume(self,value):
         """Set initial condition by initial volume
         
         
         """
-        initial_release=0 #self.release_rules(initial_volume) # ???
+        Element.set_initial_conditions('volume',value)
          
-        for variable in self.variables:
-            if variable['name'] == 'volume':
-                Element.set_initial_conditions(variable,initial_volume)
-            elif variable['name']=='release':
-                Element.set_initial_conditions(variable,initial_release)
                 
+
 
     def _sim(self,t):
         """
         
         """
-        tau = 0        
-        x_t_min_1 = self.var['volume'][t-1]
-        releases=self.release_rules()#(x_t_min_1,tau)
-        
         #TODO Add constraints on releases
         #TODO add constraint on volume
-        
-
-        evaporation = self.var['evap'][t]*self.S_v(x_t_min_1)
-        
+               
+        x_t_min_1 = self.var['volume'][t]
+        self.release_rules._sim(t)
+        evaporation = self.find_var_t('evap',t)*self.S_v(x_t_min_1)
+        #evap_t=self.find_var_t(evaporation) #is this correct?
         
         inflow = sum(self.inflow['val'][t]) #pseudocode  
         outflow = sum( release , evaporation , self.losses )
         
-        self.var['volume'][t] = x_t_min_1 + self.delta_t * ( inflow - outflow )
         self.var['release'][t] = releases
+        self.var['volume'][t+1] = x_t_min_1 + self.delta_t * ( inflow - outflow )
         
-
+        
+		
+		
+	
 
     def add_to_SDDP_problem(self,Problem):
         #_Element.Add2Optim(Problem)        
@@ -499,8 +479,8 @@ class Reservoir(_Element):
 
 class ReleaseRules(Element):
     
-    def __init__(self,inputs,parameters,**kwargs):
-        
+    def __init__(self,name,reservoir,inputs,**kwargs):
+        Element.__init__(self,name,system=reservoir,release)
     
     
 
@@ -565,13 +545,11 @@ class Floodplain(_Element):
 
 
 class Inflow(Element,pd.Series):
-    """Inflow class. Timeseries.
+    """Inflow is a timeseries.
     
     
     """
-    
-    
-    
+        
     def __init__(self,name,system,timeseries):
         
         variable={'name':'discharge'}
@@ -585,9 +563,18 @@ class Inflow(Element,pd.Series):
     def set_initial_conditions(self):
         pass
 
-## @var criteria Objective criteria
-# @var _Element_id 
-#\todo {ATTENTION weight can be timevariant and uncertain}
+	def _init_sim(self,H):  #TODO: name to be modified!
+		"""initialize simulation for timeseries
+        
+        Attributes
+        ----------
+        :H: length of the simulation [in time steps]
+        
+        * To be tested
+        
+        """                  
+        var['val'] = self.timeseries.values[:H] #[0:H] it must be H values
+
 
 class Indicator():
     """ Indicator of system performances
@@ -639,11 +626,6 @@ class Indicator():
         VarPos= (Var.Pos for Var in self._Element.Vars if Var.Name==self.VarName)                
         for t in range(Problem.T):
             Problem.SDDP_Problems[t].f[VarPos]=self.W
-
-
-
-
-
 
 
 
