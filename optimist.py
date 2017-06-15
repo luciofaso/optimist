@@ -25,14 +25,12 @@ class Element:
     * _init_sim_generic
     * _sim
     
-    
     """
     
 
     def __init__(self,name,system=self,variables=[],**kwargs): 
         
         """Create _Element object
-        
         
         Attributes
         ----------
@@ -126,24 +124,13 @@ class Element:
 
 
 
-    def find_var(self,name):
-		"""find a variable (i.e. a dictionary) in list of variables by name
+    def value(self,name_var):
+		"""get variables values from list of variables by name_var
            * To be tested
 	
 		"""
 		# from https://stackoverflow.com/questions/8653516/python-list-of-dictionaries-search	
-		return ([var for var in self.variables if var['name'] == name][0])
-
-
-
-    def find_var_t(self,name,t)
-		"""find a variable value by name and t
-           * To be tested
-		"""
-		# from https://stackoverflow.com/questions/8653516/python-list-of-dictionaries-search	
-		var=find_var(name)
-		val=var.['val'][t]
-		return(val)
+		return ([var['val'] for var in self.variables if var['name'] == name_var][0])
 
 
 
@@ -336,47 +323,50 @@ System=Element #just a name change
 class Reservoir(Element):
     """ Reservoir element
     
-    Attributes
-    ----------    
-    :system: System
-            The system to which the Reservoir belongs to
-        
-    :max_volume: float
-            Reservoir maximum volume [:math:`m^3`]
-    
-    :releases: var 
-            variable with constraints(?) (having min=[0] and max value)
-    
-    
-    Additional attributes (Optional)
-    -------------------------------
-    :release_policy:
-    
-    :specific_evaporation: timeseries
-    
-    :losses:
-    
-    :min_volume:
-    
-    :inflow: _Element
-            Infow to the Reservoir [:math:`m^3/s`]
-            
-    :release_constraints:
-    
-    :surface: float
-            Reservoir surface [:math:`m^2/s`]    
-    :S_h_curve:
-    
-    :V_h_curve:
-    
-    :releases_h_down_curve:
-    
     """
     
     
-    def __init__(self,name,system,max_volume=+inf,release_name='release',max_release=+inf,**kwargs):
+    def __init__(self,name,system,max_volume=+inf,release_name='release',max_release=+inf,release_rules=None,**kwargs):
+        """"create element Reservoir 
+
+        Attributes
+        ----------    
+        :system: System
+                The system to which the Reservoir belongs to
+            
+        :max_volume: float
+                Reservoir maximum volume [:math:`m^3`]
         
-        min_volume=min_volume if 'min_volume' in kwargs else 0              
+        :releases: var 
+                variable with constraints(?) (having min=[0] and max value)
+        
+        
+        Additional attributes (Optional)
+        -------------------------------
+        :release_policy:
+        
+        :specific_evaporation: timeseries
+        
+        :losses:
+        
+        :min_volume:
+        
+        :inflow: _Element
+                Infow to the Reservoir [:math:`m^3/s`]
+                
+        :release_constraints:
+        
+        :surface: float
+                Reservoir surface [:math:`m^2/s`]    
+        :S_h_curve:
+        
+        :V_h_curve:
+        
+        :releases_h_down_curve:
+        
+        """
+
+        min_volume=kwargs['min_volume'] if 'min_volume' in kwargs else 0              
         volume={'name':'volume','max':max_volume,'min'=min_volume}
         
         for release in releases
@@ -386,32 +376,25 @@ class Reservoir(Element):
         Element.__init__(self,name,system,[volume,releases])
         
                
-
-        # TODO: add only if existing
-        self.inflow=self.add_input(inflow) if inflow in kwargs     
-        
-        
+        #Inflow       
+        self.inflow=self.add_input(inflow) if inflow in kwargs         
         #Evaporation
-        specific_evaporation= 0 if specific_evaporation not in kwargs
+        self.specific_evaporation=add_input(kwargs['specific_evaporation']) if 'specific_evaporation' in kwargs else 0
+        #Losses
+        self.losses=kwargs['losses']  if 'losses' in kwargs else 0                                 #B same here
         
-        if type (specific_evaporation) == float:
-            specific_evaporation= pd.Series('1/1/1990',specific_evaporation)
-            
-        self.specific_evaporation=repeat(specific_evaporation,1/1/1900,now)
+        #TODO: Curves
+        # Not necessary here at this stage
+
+        self.S_v=kwargs['S_v'] if 'S_v' in kwargs else None
         
-        self.losses=losses  if losses in kwargs                                     #B same here
-        
-        #Curves 
-        S_v=S_h(inverse(v_h)) #PSEUDOCODE           #B don't really get what are the variables here.
-        
-        self.S_v=S_v #S_h_curve=( V_h_curve ^-1(dot))
-    
         if  self.specific_evaporation != 0  and self.S_v=None:
             warning('Reservoir surface required')
             
     
-        self.release_rules = []
+        self.release_rules = release_rules
           
+    
     
     def set_evaporation(self,evap_ts):
         """ create array with H values of evaporation
@@ -439,7 +422,12 @@ class Reservoir(Element):
         Element.set_initial_conditions('volume',value)
          
                 
-
+    def _init_sim(self):
+        
+        Element._init_sim()
+        v=find_var('volume')
+        r=find_var('release')
+        #ev_sp=findvar('evaporation')
 
     def _sim(self,t):
         """
@@ -447,17 +435,16 @@ class Reservoir(Element):
         """
         #TODO Add constraints on releases
         #TODO add constraint on volume
-               
-        x_t_min_1 = self.var['volume'][t]
-        self.release_rules._sim(t)
-        evaporation = self.find_var_t('evap',t)*self.S_v(x_t_min_1)
+        v_t=self.value('volume')[t]        
+        releases=self.release_rules()
+        evaporation = self.value('evap')[t]*self.S_v(v_t)
         #evap_t=self.find_var_t(evaporation) #is this correct?
         
         inflow = sum(self.inflow['val'][t]) #pseudocode  
         outflow = sum( release , evaporation , self.losses )
         
         self.var['release'][t] = releases
-        self.var['volume'][t+1] = x_t_min_1 + self.delta_t * ( inflow - outflow )
+        self.var['volume'][t+1] = v[t] + self.delta_t * ( inflow - outflow )
         
         
 		
@@ -563,7 +550,7 @@ class Inflow(Element,pd.Series):
     def set_initial_conditions(self):
         pass
 
-	def _init_sim(self,H):  #TODO: name to be modified!
+    def _init_sim(self,H):  #TODO: name to be modified!
 		"""initialize simulation for timeseries
         
         Attributes
